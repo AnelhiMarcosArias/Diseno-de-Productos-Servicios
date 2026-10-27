@@ -1,0 +1,7 @@
+package com.utp.sistema_feminicidio.exception;
+
+public class RecursoNoEncontradoException extends RuntimeException {
+    public RecursoNoEncontradoException(String recurso, Object id) {
+        super(recurso + " no encontrado: " + id);
+    }
+}
