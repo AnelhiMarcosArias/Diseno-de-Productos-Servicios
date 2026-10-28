@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, LockKeyhole, Mail, ArrowRight } from 'lucide-react';
 import Button from '../components/common/Button.jsx';
 import Notice from '../components/common/Notice.jsx';
-import { login } from '../services/authService.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState('');
@@ -15,7 +18,10 @@ export default function LoginPage() {
     setError('');
     if (!correo.trim() || !contrasena) { setError('Completa tu correo institucional y contraseña.'); return; }
     setLoading(true);
-    try { await login(correo, contrasena); }
+    try {
+      await login(correo, contrasena);
+      navigate('/', { replace: true });
+    }
     catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }
@@ -36,7 +42,7 @@ export default function LoginPage() {
         <Button type="submit" disabled={loading} className="login-submit">{loading ? 'Verificando…' : <>Iniciar sesión <ArrowRight size={17} /></>}</Button>
       </form>
       <p className="login-access"><LockKeyhole size={14} /> Acceso exclusivo para personal autorizado</p>
-      <p className="login-pending">El backend aún no tiene autenticación de cuentas institucionales. No se enviarán ni guardarán tus credenciales.</p>
+      <p className="login-pending">Acceso para cuentas habilitadas por la administración del sistema.</p>
     </section>
     <div className="login-footer">© {new Date().getFullYear()} Sistema de Evaluación del Riesgo</div>
   </main>;
