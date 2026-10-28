@@ -12,7 +12,7 @@ const links = [
 export default function AppShell({ children }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
-  function signOut() { logout(); navigate('/login'); }
+  async function signOut() { await logout(); navigate('/login'); }
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand__mark"><ShieldCheck size={22} /></span><span><b>Sistema de</b><small>Evaluación del Riesgo</small></span></div>
