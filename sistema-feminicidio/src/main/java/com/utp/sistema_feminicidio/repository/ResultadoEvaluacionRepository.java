@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ResultadoEvaluacionRepository extends JpaRepository<ResultadoEvaluacion, Long> {
     Optional<ResultadoEvaluacion> findByEvaluacion_IdEvaluacion(Long idEvaluacion);
+    boolean existsByEvaluacion_IdEvaluacion(Long idEvaluacion);
 }
