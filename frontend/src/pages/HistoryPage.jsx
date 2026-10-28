@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, FileClock, RotateCw } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell.jsx';
 import Card from '../components/common/Card.jsx';
 import Button from '../components/common/Button.jsx';
@@ -19,6 +19,7 @@ export default function HistoryPage() {
   const [expanded, setExpanded] = useState(null);
   const [evaluations, setEvaluations] = useState({});
   const [evalLoading, setEvalLoading] = useState(null);
+  const location = useLocation();
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -54,6 +55,7 @@ export default function HistoryPage() {
   const cases = data?.content || [];
   return <AppShell>
     <div className="page-heading"><div><div className="eyebrow">CONSULTA</div><h1>Historial de casos</h1><p>Consulta registros y evaluaciones asociados a tu cuenta.</p></div><Link to="/evaluacion/nueva" className="button button--primary"><span>＋</span> Registrar caso</Link></div>
+    {location.state?.registroGuardado && <Notice tone="success">{registrationMessage(location.state.registroGuardado)}</Notice>}
     <form className="filters-card" onSubmit={event => { event.preventDefault(); setPage(0); setAppliedFilters({ status: filters.status, department: filters.department.trim(), province: filters.province.trim(), district: filters.district.trim(), from: filters.from, to: filters.to }); }}>
       <div className="filter-field"><label htmlFor="filter-status">Estado del caso</label><select id="filter-status" value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}><option value="">Todos los estados</option><option value="REGISTRO">Registro</option><option value="ENEVALUACION">En evaluación</option><option value="EVALUADO">Evaluado</option><option value="CERRADO">Cerrado</option></select></div>
       <FilterInput id="filter-department" label="Departamento" value={filters.department} onChange={value => setFilters(f => ({ ...f, department: value }))} placeholder="Filtrar departamento" />
@@ -76,7 +78,7 @@ function CaseRows({ item, expanded, onToggle, evaluations, evalLoading, onResult
   const date = item.fechaRegistro ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' }).format(new Date(item.fechaRegistro)) : '—';
   return <>
     <tr><td><b className="case-code">{item.codigoCaso}</b><small className="table-subtext">Caso #{item.idCaso}</small></td><td>{date}</td><td><span className={`status-pill status-pill--${(item.estadoCaso || '').toLowerCase()}`}>{formatStatus(item.estadoCaso)}</span></td><td><span className="muted">Consultar historial</span></td><td><Button variant="ghost" className="table-action" onClick={onToggle}><Eye size={16} /> {expanded ? 'Ocultar' : 'Ver'}</Button></td></tr>
-    {expanded && <tr className="expanded-row"><td colSpan="5">{evalLoading ? <span className="muted">Cargando evaluaciones…</span> : evaluations?.error ? <><Notice tone="error">{evaluations.error}</Notice><Button variant="secondary" onClick={onToggle}>Cerrar y volver a intentar</Button></> : !evaluations?.length ? <span className="muted">Este caso no tiene evaluaciones registradas.</span> : <div className="evaluation-list">{evaluations.map(evaluation => <div className="evaluation-list__item" key={evaluation.idEvaluacion}><div><b>Evaluación #{evaluation.idEvaluacion}</b><small>{formatStatus(evaluation.estadoEvaluacion)} · {evaluation.fechaEvaluacion ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' }).format(new Date(evaluation.fechaEvaluacion)) : 'Fecha no informada'}</small></div><Button variant="secondary" onClick={() => onResult(evaluation.idEvaluacion)}>Consultar resultado</Button></div>)}</div>}</td></tr>}
+    {expanded && <tr className="expanded-row"><td colSpan="5">{evalLoading ? <span className="muted">Cargando evaluaciones…</span> : evaluations?.error ? <><Notice tone="error">{evaluations.error}</Notice><Button variant="secondary" onClick={onToggle}>Cerrar y volver a intentar</Button></> : !evaluations?.length ? <span className="muted">Este caso no tiene evaluaciones registradas.</span> : <div className="evaluation-list">{evaluations.map(evaluation => <div className="evaluation-list__item" key={evaluation.idEvaluacion}><div><b>Evaluación #{evaluation.idEvaluacion}</b><small>{formatEvaluationStatus(evaluation.estadoEvaluacion)} · {evaluation.fechaEvaluacion ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' }).format(new Date(evaluation.fechaEvaluacion)) : 'Fecha no informada'}</small></div>{evaluation.tieneResultado && evaluation.estadoEvaluacion !== 'PENDIENTE_ML' ? <Button variant="secondary" onClick={() => onResult(evaluation.idEvaluacion)}>Consultar resultado</Button> : <span className="muted">Aún no hay un resultado disponible.</span>}</div>)}</div>}</td></tr>}
   </>;
 }
 
@@ -85,3 +87,15 @@ function FilterInput({ id, label, value, onChange, ...props }) {
 }
 
 function formatStatus(value = '') { return value.replaceAll('_', ' ').toLowerCase().replace(/(^|\s)\S/g, letter => letter.toUpperCase()) || 'Sin estado'; }
+
+function formatEvaluationStatus(value = '') {
+  if (value === 'PENDIENTE_ML') return 'Pendiente de evaluación con Machine Learning';
+  return formatStatus(value);
+}
+
+function registrationMessage(registro) {
+  if (registro.reintento) {
+    return `Registro de ${registro.codigoCaso} confirmado sin duplicar el caso. Estado: ${formatEvaluationStatus(registro.estadoEvaluacion)}.`;
+  }
+  return `Caso ${registro.codigoCaso} y respuestas guardados. Estado: ${formatEvaluationStatus(registro.estadoEvaluacion)}. No se generó una predicción.`;
+}

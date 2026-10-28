@@ -1,10 +1,13 @@
 package com.utp.sistema_feminicidio.controller;
 
 import com.utp.sistema_feminicidio.dto.CasoRequest;
-import com.utp.sistema_feminicidio.dto.CasoResponse;
+import com.utp.sistema_feminicidio.dto.CasoResumenResponse;
 import com.utp.sistema_feminicidio.dto.CasoUpdateRequest;
+import com.utp.sistema_feminicidio.dto.RegistroCasoRequest;
+import com.utp.sistema_feminicidio.dto.RegistroCasoResponse;
 import com.utp.sistema_feminicidio.model.EstadoCaso;
 import com.utp.sistema_feminicidio.service.CasoService;
+import com.utp.sistema_feminicidio.service.RegistroCasoService;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import org.springframework.data.domain.Page;
@@ -19,10 +22,14 @@ import java.security.Principal;
 @RequestMapping("/api/casos")
 public class CasoController {
     private final CasoService casoService;
-    public CasoController(CasoService casoService) { this.casoService = casoService; }
+    private final RegistroCasoService registroCasoService;
+    public CasoController(CasoService casoService, RegistroCasoService registroCasoService) {
+        this.casoService = casoService;
+        this.registroCasoService = registroCasoService;
+    }
 
     @GetMapping
-    public Page<CasoResponse> listar(@RequestParam(required = false) EstadoCaso estado,
+    public Page<CasoResumenResponse> listar(@RequestParam(required = false) EstadoCaso estado,
             @RequestParam(required = false) String departamento,
             @RequestParam(required = false) String provincia,
             @RequestParam(required = false) String distrito,
@@ -33,18 +40,30 @@ public class CasoController {
     }
 
     @GetMapping("/{id}")
-    public CasoResponse obtener(@PathVariable Long id, Principal principal) { return casoService.obtener(id, principal.getName()); }
+    public CasoResumenResponse obtener(@PathVariable Long id, Principal principal) { return casoService.obtener(id, principal.getName()); }
 
     @PostMapping
-    public ResponseEntity<CasoResponse> crear(@Valid @RequestBody CasoRequest solicitud,
+    public ResponseEntity<CasoResumenResponse> crear(@Valid @RequestBody CasoRequest solicitud,
             UriComponentsBuilder uriBuilder, Principal principal) {
-        CasoResponse creado = casoService.crear(solicitud, principal.getName());
+        CasoResumenResponse creado = casoService.crear(solicitud, principal.getName());
         return ResponseEntity.created(uriBuilder.path("/api/casos/{id}").buildAndExpand(creado.idCaso()).toUri())
                 .body(creado);
     }
 
     @PutMapping("/{id}")
-    public CasoResponse actualizar(@PathVariable Long id, @Valid @RequestBody CasoUpdateRequest solicitud, Principal principal) {
+    public CasoResumenResponse actualizar(@PathVariable Long id, @Valid @RequestBody CasoUpdateRequest solicitud, Principal principal) {
         return casoService.actualizar(id, solicitud, principal.getName());
+    }
+
+    @PostMapping("/registro-completo")
+    public ResponseEntity<RegistroCasoResponse> registrarCompleto(
+            @Valid @RequestBody RegistroCasoRequest solicitud, Principal principal,
+            UriComponentsBuilder uriBuilder) {
+        RegistroCasoResponse registro = registroCasoService.registrar(solicitud, principal.getName());
+        if (registro.reintento()) {
+            return ResponseEntity.ok(registro);
+        }
+        return ResponseEntity.created(uriBuilder.path("/api/casos/{id}")
+                .buildAndExpand(registro.idCaso()).toUri()).body(registro);
     }
 }

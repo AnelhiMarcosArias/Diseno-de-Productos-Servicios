@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.utp.sistema_feminicidio.dto.CasoRequest;
-import com.utp.sistema_feminicidio.dto.CasoResponse;
+import com.utp.sistema_feminicidio.dto.CasoResumenResponse;
 import com.utp.sistema_feminicidio.exception.RecursoNoEncontradoException;
 import com.utp.sistema_feminicidio.model.EstadoCaso;
 import com.utp.sistema_feminicidio.model.Usuario;
@@ -13,6 +13,8 @@ import com.utp.sistema_feminicidio.repository.CasoRepository;
 import com.utp.sistema_feminicidio.repository.UsuarioRepository;
 import java.time.LocalDate;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,7 +41,7 @@ class CasoServiceTest {
 
         CasoRequest request = new CasoRequest("C-1", "Nombre", "Apellido", LocalDate.of(1990, 1, 1),
                 36, "Lima", "Lima", "Centro", null, EstadoCaso.REGISTRO);
-        CasoResponse response = service.crear(request, "ana");
+        CasoResumenResponse response = service.crear(request, "ana");
 
         assertEquals(21L, response.idCaso());
         assertNotNull(response.fechaRegistro());
@@ -50,5 +52,21 @@ class CasoServiceTest {
     void obtenerLanzaNotFoundSiNoExiste() {
         when(casoRepository.findByIdCasoAndUsuario_Usuario(404L, "ana")).thenReturn(Optional.empty());
         assertThrows(RecursoNoEncontradoException.class, () -> service.obtener(404L, "ana"));
+    }
+
+    @Test
+    void listarConsultaCasosDelUsuarioConFiltrosOpcionalesYConservaLaPaginacion() {
+        var pageable = PageRequest.of(0, 10);
+        when(casoRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<com.utp.sistema_feminicidio.model.Caso>>any(),
+                org.mockito.ArgumentMatchers.<org.springframework.data.domain.Pageable>any()))
+                .thenReturn(Page.empty());
+
+        var response = service.listar(null, null, null, null, null, null, "ana", pageable);
+
+        assertTrue(response.isEmpty());
+        verify(casoRepository).findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<com.utp.sistema_feminicidio.model.Caso>>any(),
+                org.mockito.ArgumentMatchers.<org.springframework.data.domain.Pageable>any());
     }
 }

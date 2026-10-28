@@ -13,6 +13,7 @@ export function getApiError(error) {
   if (error.response?.status === 401) return 'La sesión no está autenticada o expiró. Inicia sesión para continuar.';
   if (error.response?.status === 403) return 'No tienes permiso para realizar esta operación.';
   if (error.response?.status === 404) return 'No se encontró el recurso solicitado.';
+  if (error.code === 'ECONNABORTED') return 'La solicitud tardó demasiado. Reintenta con el mismo código de caso; el servidor evitará duplicarlo si ya se guardó.';
   if (error.code === 'ERR_NETWORK') return 'No se pudo conectar con el backend. Verifica que Spring Boot esté activo.';
   return 'Ocurrió un error al comunicarse con el servidor.';
 }

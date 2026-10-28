@@ -8,6 +8,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -24,6 +25,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<ApiError> noEncontrado(RecursoNoEncontradoException ex, HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, ex.getMessage(), Map.of(), request);
+    }
+
+    @ExceptionHandler(ConflictoRegistroException.class)
+    public ResponseEntity<ApiError> conflictoRegistro(ConflictoRegistroException ex, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ex.getMessage(), Map.of(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -43,7 +49,7 @@ public class ApiExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "Uno o más parámetros de la solicitud no son válidos", Map.of(), request);
     }
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ExceptionHandler({DataIntegrityViolationException.class, DuplicateKeyException.class})
     public ResponseEntity<ApiError> conflicto(DataIntegrityViolationException ex, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, "La operación entra en conflicto con los datos existentes", Map.of(), request);
     }
