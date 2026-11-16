@@ -1,15 +1,38 @@
-# Backend Spring Boot
+# Sistema Inteligente de Evaluación del Riesgo de Feminicidio
 
-## Conexión local a PostgreSQL
+## Estructura
 
-1. Crea una base de datos PostgreSQL llamada `sistema_feminicidio` (o ajusta `DB_URL` si usarás otro nombre o puerto).
-2. Copia `.env.example` como `.env` en esta carpeta.
-3. Completa `DB_USERNAME` y `DB_PASSWORD` con las credenciales de tu instalación. No compartas ni subas el archivo `.env`.
-4. En el mismo `.env`, configura `AUTH_BOOTSTRAP_USERNAME`, `AUTH_BOOTSTRAP_EMAIL` y una contraseña propia en `AUTH_BOOTSTRAP_PASSWORD`. Estos valores crearán una cuenta inicial de administración solo si todavía no existe esa cuenta.
-5. Desde esta carpeta, inicia la aplicación con `./mvnw spring-boot:run` (Linux/macOS) o `mvnw.cmd spring-boot:run` (Windows).
+```text
+sistema-feminicidio/
+├── backend/                 # API y aplicación Spring Boot
+├── frontend/                # Aplicación React + Vite
+├── ml-service/              # Auditoría y experimento retrospectivo reproducible
+└── Proyecto_Feminicidio_Datos/ # Materiales y datos de investigación existentes
+```
 
-En desarrollo, Hibernate crea y actualiza las tablas definidas por las entidades JPA con `DB_DDL_AUTO=update`. Esto no crea la base de datos PostgreSQL; esa base debe existir antes del primer arranque. Para una entrega reproducible, conviene reemplazar la actualización automática por migraciones Flyway versionadas.
+Los datos de investigación se conservan como material de referencia. No se afirma que estén conectados al backend ni que alimenten un modelo de Machine Learning.
 
-El login usa una sesión del servidor con protección CSRF y contraseñas BCrypt. La cuenta inicial se crea solo cuando sus tres valores de bootstrap están configurados y no existe ya una cuenta con ese usuario o correo. Cambiar esos valores después no cambia la contraseña de una cuenta existente.
+## Ejecutar localmente
 
-El microservicio de predicción sigue pendiente para la siguiente entrega.
+### Backend
+
+1. Crea la base PostgreSQL local que usa el proyecto y configura `backend/.env` a partir de `backend/.env.example`. No compartas ni subas `.env`.
+2. En una terminal, entra a `sistema-feminicidio/backend` y ejecuta en Windows:
+
+   ```powershell
+   .\mvnw.cmd spring-boot:run
+   ```
+
+   En Linux/macOS, usa `./mvnw spring-boot:run`.
+
+### Frontend
+
+1. En otra terminal, entra a `sistema-feminicidio/frontend`.
+2. Instala las dependencias según `package-lock.json` con `npm ci` si aún no están instaladas.
+3. Inicia Vite con `npm run dev` y abre la URL local que muestre la terminal.
+
+El frontend usa `http://localhost:8080/api` como URL de API predeterminada. Si necesitas cambiarla, copia `frontend/.env.example` a `frontend/.env` y configura `VITE_API_BASE_URL`.
+
+## Alcance actual
+
+El backend Spring Boot y el frontend React están separados dentro del proyecto. `ml-service` compara seis algoritmos para D107, que representa violencia severa reportada retrospectivamente; no predice feminicidio futuro ni se conecta al cuestionario. No se versiona un modelo entrenado ni existe un endpoint predictivo. El panel muestra el estado operativo de FastAPI a través de `GET /api/system/ml-service` (sesión autenticada); esa comprobación no ejecuta evaluaciones. Consulta `ml-service/README.md`, `ml-service/docs/data_audit.md` y `ml-service/docs/model_results.md` para reproducir el análisis y revisar sus límites.
