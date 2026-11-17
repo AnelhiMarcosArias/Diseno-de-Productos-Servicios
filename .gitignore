@@ -1,0 +1,31 @@
+# Configuración local y secretos. Se mantienen los archivos de ejemplo.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+# Dependencias y artefactos generados.
+**/node_modules/
+**/dist/
+**/target/
+**/build/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+*.py[cod]
+.coverage
+
+# Archivos temporales y logs.
+*.log
+npm-debug.log*
+
+# Archivos del sistema operativo.
+.DS_Store
+Thumbs.db
+
+# Archivos originales descargados del INEI: mantenerlos localmente, no subirlos.
+/sistema-feminicidio/Proyecto_Feminicidio_Datos/01_Datos_Originales/
+
+# Modelos entrenados y datasets derivados: no versionar registros individuales.
+/sistema-feminicidio/ml-service/artifacts/
+/sistema-feminicidio/ml-service/data/processed/
