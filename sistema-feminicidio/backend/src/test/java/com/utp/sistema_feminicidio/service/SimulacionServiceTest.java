@@ -94,6 +94,38 @@ class SimulacionServiceTest {
     }
 
     @Test
+    void calculaYPersisteElIndiceExperimentalConVersionYFecha() {
+        Evaluacion evaluation = new Evaluacion();
+        evaluation.setIdEvaluacion(10L);
+        Caso ownedCase = new Caso();
+        ownedCase.setIdCaso(4L);
+        evaluation.setCaso(ownedCase);
+        when(evaluaciones.findByIdEvaluacionAndCaso_Usuario_Usuario(10L, "profesional-a"))
+                .thenReturn(Optional.of(evaluation));
+        when(simulaciones.findByEvaluacion_IdEvaluacion(10L)).thenReturn(Optional.empty());
+        when(simulaciones.saveAndFlush(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(mlClient.inferir(org.mockito.ArgumentMatchers.anyMap())).thenReturn(
+                new SimulacionMlClient.InferenceResult(new BigDecimal("73.25"),
+                        "synthetic-v1-v12-xgb-demo-v1", "synthetic_academic_demonstration"));
+
+        var response = service.ejecutar(10L, new SimulacionRequest(respuestasValidas()), "profesional-a");
+
+        org.junit.jupiter.api.Assertions.assertEquals(EstadoSimulacion.COMPLETADA, response.estado());
+        org.junit.jupiter.api.Assertions.assertEquals(new BigDecimal("73.25"), response.indiceExperimental());
+        org.junit.jupiter.api.Assertions.assertEquals("synthetic-v1-v12-xgb-demo-v1", response.modeloVersion());
+        org.junit.jupiter.api.Assertions.assertNotNull(response.fechaGeneracion());
+        org.mockito.ArgumentCaptor<ResultadoSimulacion> savedSimulation =
+                org.mockito.ArgumentCaptor.forClass(ResultadoSimulacion.class);
+        verify(simulaciones).save(savedSimulation.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(EstadoSimulacion.COMPLETADA, savedSimulation.getValue().getEstado());
+        org.junit.jupiter.api.Assertions.assertEquals(new BigDecimal("73.25"),
+                savedSimulation.getValue().getIndiceExperimental());
+        org.junit.jupiter.api.Assertions.assertNotNull(savedSimulation.getValue().getFechaGeneracion());
+        verify(evaluaciones).save(evaluation);
+    }
+
+    @Test
     void unaRepeticionDeUnaEvaluacionCompletadaDevuelveElResultadoSinRecalcular() {
         Evaluacion evaluation = new Evaluacion();
         evaluation.setIdEvaluacion(9L);

@@ -54,7 +54,13 @@ export default function EvaluationPage() {
       estadoCaso: 'REGISTRO',
     };
     try {
-      const response = await caseService.registerWithQuestionnaire({ caso, cuestionario });
+      const response = await caseService.registerWithQuestionnaire({
+        caso,
+        cuestionario,
+        // Keep the three answer states (SI/NO/NO_ESTOY_SEGURA) in the same
+        // atomic registration as the legacy nullable Boolean columns.
+        respuestasV1V12: answersByQuestion,
+      });
       const saved = response.data;
       navigate(`/evaluacion/${saved.idCaso}/resultado?evaluacionId=${saved.idEvaluacion}&ejecutar=1`, { state: { respuestas: answersByQuestion } });
     } catch (e) { setError(getApiError(e)); }
