@@ -8,24 +8,32 @@ import com.utp.sistema_feminicidio.dto.CasoRequest;
 import com.utp.sistema_feminicidio.dto.DetalleCasoRequest;
 import com.utp.sistema_feminicidio.dto.RegistroCasoRequest;
 import com.utp.sistema_feminicidio.dto.RegistroCasoResponse;
+import com.utp.sistema_feminicidio.dto.RespuestaExperimental;
 import com.utp.sistema_feminicidio.exception.ConflictoRegistroException;
 import com.utp.sistema_feminicidio.model.Caso;
 import com.utp.sistema_feminicidio.model.DetalleCaso;
 import com.utp.sistema_feminicidio.model.EstadoCaso;
 import com.utp.sistema_feminicidio.model.Evaluacion;
 import com.utp.sistema_feminicidio.model.Usuario;
+import com.utp.sistema_feminicidio.model.EstadoSimulacion;
+import com.utp.sistema_feminicidio.model.ResultadoSimulacion;
 import com.utp.sistema_feminicidio.repository.CasoRepository;
 import com.utp.sistema_feminicidio.repository.DetalleCasoRepository;
 import com.utp.sistema_feminicidio.repository.EvaluacionRepository;
 import com.utp.sistema_feminicidio.repository.UsuarioRepository;
+import com.utp.sistema_feminicidio.repository.ResultadoSimulacionRepository;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import jakarta.validation.Validation;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 class RegistroCasoServiceTest {
@@ -33,7 +41,15 @@ class RegistroCasoServiceTest {
     @Mock DetalleCasoRepository detalleCasoRepository;
     @Mock EvaluacionRepository evaluacionRepository;
     @Mock UsuarioRepository usuarioRepository;
-    @InjectMocks RegistroCasoService service;
+    @Mock ResultadoSimulacionRepository simulacionRepository;
+    @Mock ObjectMapper objectMapper;
+    private RegistroCasoService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new RegistroCasoService(casoRepository, detalleCasoRepository,
+                evaluacionRepository, usuarioRepository, simulacionRepository, objectMapper);
+    }
 
     @Test
     void registraCasoCuestionarioYEvaluacionPendienteSinConvertirAusenteEnNo() {
@@ -68,6 +84,52 @@ class RegistroCasoServiceTest {
         assertEquals(EstadoCaso.REGISTRO, response.estadoCaso());
         assertEquals("PENDIENTE_ML", response.estadoEvaluacion());
         assertFalse(response.reintento());
+    }
+
+    @Test
+    void guardaLasDoceRespuestasCategorialesEnLaSimulacionPendiente() throws NoSuchFieldException {
+        Usuario usuario = usuario();
+        when(casoRepository.findByCodigoCasoAndUsuario_Usuario("C-12", "ana")).thenReturn(Optional.empty());
+        when(casoRepository.existsByCodigoCaso("C-12")).thenReturn(false);
+        when(usuarioRepository.findByUsuario("ana")).thenReturn(Optional.of(usuario));
+        when(casoRepository.save(any(Caso.class))).thenAnswer(invocation -> {
+            Caso caso = invocation.getArgument(0);
+            caso.setIdCaso(16L);
+            return caso;
+        });
+        when(detalleCasoRepository.save(any(DetalleCaso.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(evaluacionRepository.save(any(Evaluacion.class))).thenAnswer(invocation -> {
+            Evaluacion evaluacion = invocation.getArgument(0);
+            evaluacion.setIdEvaluacion(32L);
+            return evaluacion;
+        });
+        when(simulacionRepository.findByEvaluacion_IdEvaluacion(32L)).thenReturn(Optional.empty());
+        when(objectMapper.valueToTree(any())).thenAnswer(invocation ->
+                JsonMapper.builder().build().valueToTree(invocation.getArgument(0)));
+
+        Map<String, RespuestaExperimental> answers = respuestasV1V12();
+        var request = new RegistroCasoRequest(
+                new CasoRequest("C-12", "Nombre", "Apellido", null, 28,
+                        null, null, null, null, EstadoCaso.REGISTRO),
+                respuestas(), answers);
+
+        service.registrar(request, "ana");
+
+        ArgumentCaptor<ResultadoSimulacion> captor = ArgumentCaptor.forClass(ResultadoSimulacion.class);
+        verify(simulacionRepository).save(captor.capture());
+        ResultadoSimulacion pending = captor.getValue();
+        // The shared primary key must remain unset until JPA persists the new row.
+        // Copying this ID here makes Spring Data choose merge() for a transient entity.
+        assertNull(pending.getEvaluacionId());
+        assertNotNull(pending.getEvaluacion());
+        assertEquals(32L, pending.getEvaluacion().getIdEvaluacion());
+        assertNotNull(ResultadoSimulacion.class.getDeclaredField("evaluacion")
+                .getAnnotation(jakarta.persistence.MapsId.class));
+        assertEquals(EstadoSimulacion.PENDIENTE, pending.getEstado());
+        assertEquals(12, pending.getRespuestas().size());
+        assertEquals("SI", pending.getRespuestas().get("V1").stringValue());
+        assertEquals("NO", pending.getRespuestas().get("V2").stringValue());
+        assertEquals("NO_ESTOY_SEGURA", pending.getRespuestas().get("V3").stringValue());
     }
 
     @Test
@@ -194,6 +256,23 @@ class RegistroCasoServiceTest {
     private DetalleCasoRequest respuestas() {
         return new DetalleCasoRequest(true, false, null, true, null, false,
                 true, null, false, true, false, null);
+    }
+
+    private Map<String, RespuestaExperimental> respuestasV1V12() {
+        Map<String, RespuestaExperimental> answers = new LinkedHashMap<>();
+        answers.put("V1", RespuestaExperimental.SI);
+        answers.put("V2", RespuestaExperimental.NO);
+        answers.put("V3", RespuestaExperimental.NO_ESTOY_SEGURA);
+        answers.put("V4", RespuestaExperimental.SI);
+        answers.put("V5", RespuestaExperimental.NO_ESTOY_SEGURA);
+        answers.put("V6", RespuestaExperimental.NO);
+        answers.put("V7", RespuestaExperimental.SI);
+        answers.put("V8", RespuestaExperimental.NO_ESTOY_SEGURA);
+        answers.put("V9", RespuestaExperimental.NO);
+        answers.put("V10", RespuestaExperimental.SI);
+        answers.put("V11", RespuestaExperimental.NO);
+        answers.put("V12", RespuestaExperimental.NO_ESTOY_SEGURA);
+        return answers;
     }
 
     private Usuario usuario() {
