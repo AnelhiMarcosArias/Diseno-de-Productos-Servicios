@@ -36,6 +36,22 @@ class MlServiceStatusSecurityTest {
     }
 
     @Test
+    @WithMockUser(username = "paciente", roles = "PACIENTE")
+    void rejectsPatientRoleFromCaseAndDashboardData() throws Exception {
+        mvc.perform(get("/api/casos"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/dashboard/resumen"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "profesional", roles = "PROFESIONAL")
+    void rejectsProfessionalRoleFromAdministrativeAccountManagement() throws Exception {
+        mvc.perform(get("/api/admin/usuarios"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @WithMockUser(username = "profesional", roles = "PROFESIONAL")
     void returnsStatusToAuthenticatedSession() throws Exception {
         when(service.consultarEstado()).thenReturn(new MlServiceStatusResponse(

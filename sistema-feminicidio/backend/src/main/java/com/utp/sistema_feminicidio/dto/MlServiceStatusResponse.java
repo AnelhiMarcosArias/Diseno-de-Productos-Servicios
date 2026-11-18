@@ -7,5 +7,12 @@ public record MlServiceStatusResponse(
         boolean modelLoaded,
         boolean predictionEndpointEnabled,
         String experimentScope,
-        String message) {
+        String message,
+        boolean syntheticModelLoaded,
+        String syntheticModelVersion) {
+    public MlServiceStatusResponse(boolean serviceReachable, boolean healthContractValid,
+            boolean modelLoaded, boolean predictionEndpointEnabled, String experimentScope, String message) {
+        this(serviceReachable, healthContractValid, modelLoaded, predictionEndpointEnabled,
+                experimentScope, message, false, "unavailable");
+    }
 }

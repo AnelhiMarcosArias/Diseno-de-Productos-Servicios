@@ -27,6 +27,8 @@ def test_health_reports_process_and_experimental_model_readiness_separately():
     assert result["experimental_prediction_ready"] is (main.model_bundle is not None)
     assert result["product_prediction_enabled"] is False
     assert result["experiment_scope"] == "retrospective ENDES D107 only"
+    assert result["synthetic_prediction_enabled"] is (main.synthetic_model is not None)
+    assert result["synthetic_model_version"] == (main.SYNTHETIC_MODEL_VERSION if main.synthetic_model is not None else "unavailable")
 
 
 def test_invalid_endes_codes_are_rejected_before_inference():
@@ -99,6 +101,34 @@ def test_no_generic_product_predict_route_is_exposed():
         route.path == "/predict" and "POST" in getattr(route, "methods", set())
         for route in app.routes
     )
+
+
+def test_synthetic_endpoint_requires_exactly_twelve_categorical_answers():
+    answers = {f"V{i}": "NO" for i in range(1, 13)}
+    request = main.SyntheticV1V12Request.model_validate({"answers": answers})
+    assert len(request.answers) == 12
+    answers.pop("V12")
+    with pytest.raises(ValidationError):
+        main.SyntheticV1V12Request.model_validate({"answers": answers})
+
+
+def test_synthetic_inference_uses_only_stubbed_xgboost_model(monkeypatch):
+    class StubModel:
+        def predict_proba(self, values):
+            assert values.shape == (1, 12)
+            assert values[0, 0] == 2  # uncertainty is not recoded as a negative
+            return np.array([[0.27, 0.73]])
+
+    monkeypatch.setattr(main, "synthetic_model", StubModel())
+    answers = {f"V{i}": "NO" for i in range(1, 13)}
+    answers["V1"] = "NO_ESTOY_SEGURA"
+    answers["V11"] = "SI"
+    result = main.simulate_v1_v12(main.SyntheticV1V12Request(answers=answers))
+    assert result["index"] == 73.0
+    assert result["model_type"] == "synthetic_academic_demonstration"
+    assert result["uncertain_answers"] == ["V1"]
+    assert result["critical_signals"] == ["V11"]
+    assert "not calibrated" in result["warning"]
 
 
 def test_generated_candidate_artifact_loads_and_supports_research_inference():

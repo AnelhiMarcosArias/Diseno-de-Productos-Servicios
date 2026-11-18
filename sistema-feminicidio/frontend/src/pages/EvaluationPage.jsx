@@ -27,23 +27,26 @@ const variablesCuestionario = [
 export default function EvaluationPage() {
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState(() => ({ ...emptyCase, codigoCaso: createCaseCode() }));
-  const [variables, setVariables] = useState(Array(12).fill(''));
+  const [answers, setAnswers] = useState(Array(12).fill(''));
   const [step, setStep] = useState(1);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [review, setReview] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const updateCase = (event) => setCaseData(prev => ({ ...prev, [event.target.name]: event.target.value }));
-  const setVariable = (index, value) => setVariables(prev => prev.map((current, i) => i === index ? value : current));
+  const setAnswer = (index, value) => setAnswers(prev => prev.map((current, i) => i === index ? value : current));
 
-  async function submitCase(event) {
-    event.preventDefault();
-    setError('');
-    setStep(2);
+  function continueToQuestionnaire(event) {
+    event.preventDefault(); setError(''); setStep(2);
   }
 
-  async function submitDetail(event) {
-    event.preventDefault(); setError(''); setLoading(true);
-    const cuestionario = Object.fromEntries(variables.map((value, i) => [`variable${i + 1}`, value === '' ? null : value === 'true']));
+  async function finishEvaluation() {
+    setError(''); setLoading(true);
+    const answersByQuestion = Object.fromEntries(answers.map((value, i) => [`V${i + 1}`, value]));
+    // Keep the legacy Boolean columns populated when they have a yes/no answer.
+    // The separate simulation endpoint persists all three answer states exactly.
+    const cuestionario = Object.fromEntries(answers.map((value, i) => [`variable${i + 1}`, value === 'SI' ? true : value === 'NO' ? false : null]));
     const caso = {
       ...caseData,
       fechaNacimiento: caseData.fechaNacimiento || null,
@@ -52,53 +55,58 @@ export default function EvaluationPage() {
     };
     try {
       const response = await caseService.registerWithQuestionnaire({ caso, cuestionario });
-      navigate('/historial', { state: { registroGuardado: response.data } });
+      const saved = response.data;
+      navigate(`/evaluacion/${saved.idCaso}/resultado?evaluacionId=${saved.idEvaluacion}&ejecutar=1`, { state: { respuestas: answersByQuestion } });
     } catch (e) { setError(getApiError(e)); }
     finally { setLoading(false); }
   }
 
+  const current = variablesCuestionario[questionIndex];
+  const completed = answers.filter(Boolean).length;
   return <AppShell>
-    <div className="page-heading"><div><div className="eyebrow">NUEVO REGISTRO</div><h1>Registro de caso</h1><p>Completa los datos y el cuestionario; se guardarán juntos al confirmar.</p></div><div className="heading-badge"><ShieldCheck size={17} /> Información confidencial</div></div>
-    <div className="stepper"><div className={`step ${step === 1 ? 'step--active' : 'step--done'}`}><span>{step === 2 ? <Check size={15} /> : '1'}</span><b>Datos del caso</b></div><i /><div className={`step ${step === 2 ? 'step--active' : ''}`}><span>2</span><b>Cuestionario</b></div></div>
+    <div className="page-heading"><div><div className="eyebrow">NUEVO REGISTRO</div><h1>Registro de caso</h1><p>Registra el caso y completa una pregunta a la vez.</p></div><div className="heading-badge"><ShieldCheck size={17} /> Información confidencial</div></div>
+    <div className="stepper"><div className={`step ${step === 1 ? 'step--active' : 'step--done'}`}><span>{step === 2 ? <Check size={15} /> : '1'}</span><b>Datos del caso</b></div><i /><div className={`step ${step === 2 ? 'step--active' : ''}`}><span>2</span><b>Cuestionario V1–V12</b></div></div>
     {error && <Notice tone="error">{error}</Notice>}
-    {step === 1 ? <form onSubmit={submitCase}>
-      <Card className="form-card"><div className="form-card__title"><span className="section-icon"><FileText size={19} /></span><div><h2>Información del caso</h2><p>Los campos con * son obligatorios.</p></div></div>
+    {step === 1 ? <form onSubmit={continueToQuestionnaire}>
+      <Card className="form-card"><div className="form-card__title"><span className="section-icon"><FileText size={19} /></span><div><h2>Información del caso</h2><p>Los campos con * son obligatorios. Evita incluir datos personales innecesarios.</p></div></div>
         <div className="form-grid">
           <Field label="Código del caso" name="codigoCaso" value={caseData.codigoCaso} readOnly maxLength={50} aria-describedby="case-code-help" />
-          <small id="case-code-help" className="form-hint form-grid__wide">Código único generado para este registro. Se conserva si necesitas reintentar el envío.</small>
-          <Field label="Nombre *" name="nombrePersona" value={caseData.nombrePersona} onChange={updateCase} required maxLength={100} />
-          <Field label="Apellido *" name="apellidoPersona" value={caseData.apellidoPersona} onChange={updateCase} required maxLength={100} />
+          <small id="case-code-help" className="form-hint form-grid__wide">Código único para identificar el registro en el sistema.</small>
+          <Field label="Nombre *" name="nombrePersona" value={caseData.nombrePersona} onChange={updateCase} required maxLength={100} autoComplete="off" />
+          <Field label="Apellido *" name="apellidoPersona" value={caseData.apellidoPersona} onChange={updateCase} required maxLength={100} autoComplete="off" />
           <Field label="Fecha de nacimiento" name="fechaNacimiento" type="date" value={caseData.fechaNacimiento} onChange={updateCase} />
-          <Field label="Edad" name="edad" type="number" min="0" value={caseData.edad} onChange={updateCase} />
+          <Field label="Edad" name="edad" type="number" min="0" max="120" value={caseData.edad} onChange={updateCase} />
           <Field label="Departamento" name="departamento" value={caseData.departamento} onChange={updateCase} maxLength={100} />
           <Field label="Provincia" name="provincia" value={caseData.provincia} onChange={updateCase} maxLength={100} />
           <Field label="Distrito" name="distrito" value={caseData.distrito} onChange={updateCase} maxLength={100} />
           <Field label="Dirección" name="direccion" value={caseData.direccion} onChange={updateCase} maxLength={300} className="form-grid__wide" />
         </div>
       </Card>
-      <div className="form-actions"><span className="form-hint">El caso se asociará con tu cuenta autenticada.</span><Button type="submit" disabled={loading}>Continuar al cuestionario <ArrowRight size={17} /></Button></div>
-    </form> : <form onSubmit={submitDetail}>
-      <Card className="form-card"><div className="form-card__title"><span className="section-icon"><ClipboardPlus size={19} /></span><div><h2>Cuestionario</h2><p>Responde los indicadores disponibles. Puedes dejar una respuesta sin marcar si no cuentas con esa información.</p></div></div>
-        <div className="variables-grid">{variablesCuestionario.map(({ nombre, pregunta }, i) => <div className="variable-field" key={nombre}>
-          <button className="variable-field__question" type="button" aria-describedby={`pregunta-variable-${i + 1}`}>
-            <span>{nombre}</span>
-            <span className="variable-field__tooltip" id={`pregunta-variable-${i + 1}`} role="tooltip">{pregunta}</span>
-          </button>
-          <select id={`variable-${i + 1}`} value={variables[i]} onChange={e => setVariable(i, e.target.value)} aria-label={nombre}>
-            <option value="">Sin dato</option><option value="true">Sí</option><option value="false">No</option>
-          </select>
-        </div>)}</div>
-        <Notice tone="info">“Sin dato” se guardará como respuesta ausente y “No” como respuesta negativa. Al guardar, el caso y sus respuestas se registrarán juntos. La evaluación quedará pendiente; no se generará una predicción.</Notice>
+      <div className="form-actions"><span className="form-hint">El registro se asociará con tu cuenta autenticada.</span><Button type="submit">Continuar al cuestionario <ArrowRight size={17} /></Button></div>
+    </form> : <>
+      <Card className="form-card questionnaire-card">
+        <div className="questionnaire-progress"><div><span>Pregunta {review ? 'revisión' : `${questionIndex + 1} de 12`}</span><b>{completed}/12 respondidas</b></div><div className="progress-track" role="progressbar" aria-label="Progreso del cuestionario" aria-valuemin="0" aria-valuemax="12" aria-valuenow={completed}><span style={{ width: `${completed / 12 * 100}%` }} /></div></div>
+        {review ? <>
+          <div className="form-card__title"><span className="section-icon"><ClipboardPlus size={19} /></span><div><h2>Revisa tus respuestas</h2><p>Confirma que las doce respuestas reflejen lo que sabes.</p></div></div>
+          <div className="answer-review">{variablesCuestionario.map(({ nombre }, i) => <button className="answer-review__item" type="button" key={nombre} onClick={() => { setQuestionIndex(i); setReview(false); }}><span><b>V{i + 1} · {nombre}</b><small>{answers[i] === 'SI' ? 'Sí' : answers[i] === 'NO' ? 'No' : answers[i] === 'NO_ESTOY_SEGURA' ? 'No estoy segura' : 'Sin responder'}</small></span><span aria-hidden="true">Editar</span></button>)}</div>
+          <Notice tone="info">Esta demostración emplea un modelo XGBoost entrenado con datos sintéticos. El índice no estima peligro real ni sustituye una evaluación profesional. Las respuestas de amenazas graves y estrangulamiento/acceso a armas se mostrarán aparte del índice.</Notice>
+        </> : <div className="question-card" key={questionIndex}>
+          <div className="eyebrow">V{questionIndex + 1} · {current.nombre}</div><h2>{current.pregunta}</h2>
+          <fieldset className="answer-options"><legend>Selecciona una respuesta</legend>
+            {[['SI', 'Sí'], ['NO', 'No'], ['NO_ESTOY_SEGURA', 'No estoy segura']].map(([value, label]) => <label className={`answer-option ${answers[questionIndex] === value ? 'answer-option--selected' : ''}`} key={value}><input type="radio" name={`V${questionIndex + 1}`} value={value} checked={answers[questionIndex] === value} onChange={() => setAnswer(questionIndex, value)} /><span>{label}</span></label>)}
+          </fieldset>
+          {!answers[questionIndex] && <p className="form-hint">Elige “No estoy segura” si no tienes información suficiente; no se interpretará como “No”.</p>}
+        </div>}
       </Card>
-      <div className="form-actions"><Button type="button" variant="secondary" disabled={loading} onClick={() => setStep(1)}><ArrowLeft size={17} /> Volver a datos</Button><Button type="submit" disabled={loading}>{loading ? 'Guardando…' : <>Guardar registro <Save size={17} /></>}</Button></div>
-    </form>}
+      <div className="form-actions questionnaire-actions">
+        <Button type="button" variant="secondary" disabled={loading} onClick={() => review ? setReview(false) : questionIndex === 0 ? setStep(1) : setQuestionIndex(i => i - 1)}><ArrowLeft size={17} /> {review ? 'Volver a preguntas' : questionIndex === 0 ? 'Volver a datos' : 'Anterior'}</Button>
+        {review ? <Button type="button" disabled={loading || completed !== 12} onClick={finishEvaluation}>{loading ? 'Guardando y calculando…' : <>Finalizar evaluación <Save size={17} /></>}</Button>
+          : questionIndex < 11 ? <Button type="button" disabled={!answers[questionIndex]} onClick={() => setQuestionIndex(i => i + 1)}>Siguiente <ArrowRight size={17} /></Button>
+            : <Button type="button" disabled={!answers[questionIndex]} onClick={() => setReview(true)}>Revisar respuestas <ArrowRight size={17} /></Button>}
+      </div>
+    </>}
   </AppShell>;
 }
 
-function createCaseCode() {
-  return `CASO-${globalThis.crypto.randomUUID()}`;
-}
-
-function Field({ label, className = '', ...props }) {
-  return <label className={`field ${className}`}><span>{label}</span><input {...props} /></label>;
-}
+function createCaseCode() { return `CASO-${globalThis.crypto.randomUUID()}`; }
+function Field({ label, className = '', ...props }) { return <label className={`field ${className}`}><span>{label}</span><input {...props} /></label>; }

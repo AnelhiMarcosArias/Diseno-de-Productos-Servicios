@@ -1,12 +1,15 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
+import AdminRoute from './routes/AdminRoute.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import EvaluationPage from './pages/EvaluationPage.jsx';
 import EvaluationResultPage from './pages/EvaluationResultPage.jsx';
 import HistoryPage from './pages/HistoryPage.jsx';
 import StatisticsPage from './pages/StatisticsPage.jsx';
+import ResearchPage from './pages/ResearchPage.jsx';
+import AdministrationPage from './pages/AdministrationPage.jsx';
 
 export default function App() {
   return (
@@ -19,6 +22,10 @@ export default function App() {
           <Route path="/evaluacion/:casoId/resultado" element={<EvaluationResultPage />} />
           <Route path="/historial" element={<HistoryPage />} />
           <Route path="/estadisticas" element={<StatisticsPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/investigacion" element={<ResearchPage />} />
+            <Route path="/administracion" element={<AdministrationPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

@@ -33,8 +33,14 @@ public class MlServiceStatusService {
             boolean modelLoaded = payload.get("model_loaded").booleanValue();
             boolean predictionEnabled = payload.get("prediction_endpoint_enabled").booleanValue();
             String scope = payload.get("experiment_scope").stringValue();
+            boolean syntheticLoaded = payload.has("synthetic_model_loaded")
+                    && payload.get("synthetic_model_loaded").isBoolean()
+                    && payload.get("synthetic_model_loaded").booleanValue();
+            String syntheticVersion = payload.has("synthetic_model_version")
+                    ? payload.get("synthetic_model_version").stringValue() : "unavailable";
             return new MlServiceStatusResponse(true, true, modelLoaded, predictionEnabled, scope,
-                    "Estado operativo del servicio; no constituye una evaluación de riesgo.");
+                    "Servicio de simulación académica; no constituye una evaluación de riesgo real.",
+                    syntheticLoaded, syntheticVersion);
         } catch (RestClientException | IllegalArgumentException exception) {
             return new MlServiceStatusResponse(false, false, false, false, "unknown",
                     "El microservicio ML no está disponible. No se ejecutan predicciones.");

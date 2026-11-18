@@ -51,8 +51,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers("/api/casos/**", "/api/evaluaciones/**", "/api/dashboard/**")
+                        .hasAnyRole("PROFESIONAL", "ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/system/ml-service")
                         .hasAnyRole("PROFESIONAL", "ADMINISTRADOR")
+                        .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
                         .anyRequest().authenticated())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())

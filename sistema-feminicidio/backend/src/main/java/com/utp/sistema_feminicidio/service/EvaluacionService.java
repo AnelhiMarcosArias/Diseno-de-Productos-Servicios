@@ -5,6 +5,7 @@ import com.utp.sistema_feminicidio.exception.RecursoNoEncontradoException;
 import com.utp.sistema_feminicidio.repository.CasoRepository;
 import com.utp.sistema_feminicidio.repository.EvaluacionRepository;
 import com.utp.sistema_feminicidio.repository.ResultadoEvaluacionRepository;
+import com.utp.sistema_feminicidio.repository.ResultadoSimulacionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,12 +17,15 @@ public class EvaluacionService {
     private final EvaluacionRepository evaluacionRepository;
     private final CasoRepository casoRepository;
     private final ResultadoEvaluacionRepository resultadoRepository;
+    private final ResultadoSimulacionRepository simulacionRepository;
 
     public EvaluacionService(EvaluacionRepository evaluacionRepository, CasoRepository casoRepository,
-            ResultadoEvaluacionRepository resultadoRepository) {
+            ResultadoEvaluacionRepository resultadoRepository,
+            ResultadoSimulacionRepository simulacionRepository) {
         this.evaluacionRepository = evaluacionRepository;
         this.casoRepository = casoRepository;
         this.resultadoRepository = resultadoRepository;
+        this.simulacionRepository = simulacionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -31,6 +35,9 @@ public class EvaluacionService {
         return evaluacionRepository.findByCaso_IdCaso(casoId, Paginacion.limitar(pageable)).map(e ->
                 new EvaluacionResponse(e.getIdEvaluacion(), e.getCaso().getIdCaso(), e.getFechaEvaluacion(),
                         e.getTipoEvaluacion(), e.getVersionModelo(), e.getEstadoEvaluacion(), e.getFechaResultadoML(),
-                        resultadoRepository.existsByEvaluacion_IdEvaluacion(e.getIdEvaluacion())));
+                        resultadoRepository.existsByEvaluacion_IdEvaluacion(e.getIdEvaluacion())
+                                || simulacionRepository.existsByEvaluacion_IdEvaluacionAndEstado(
+                                        e.getIdEvaluacion(), com.utp.sistema_feminicidio.model.EstadoSimulacion.COMPLETADA),
+                        simulacionRepository.existsById(e.getIdEvaluacion())));
     }
 }

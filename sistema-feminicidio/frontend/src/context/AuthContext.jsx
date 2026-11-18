@@ -4,7 +4,7 @@ import * as authService from '../services/authService.js';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // No se persiste una sesión porque el backend aún no ofrece un contrato de autenticación.
+  // The backend owns the HTTP session; the client keeps only the current view state in memory.
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 

@@ -12,4 +12,7 @@ public interface EvaluacionRepository extends JpaRepository<Evaluacion, Long> {
             Long idCaso, String tipoEvaluacion);
     Page<Evaluacion> findByFechaEvaluacionBetween(LocalDateTime desde, LocalDateTime hasta, Pageable pageable);
     boolean existsByIdEvaluacionAndCaso_Usuario_Usuario(Long idEvaluacion, String usuario);
+    java.util.Optional<Evaluacion> findByIdEvaluacionAndCaso_Usuario_Usuario(Long idEvaluacion, String usuario);
+    long countByCaso_Usuario_Usuario(String usuario);
+    long countByCaso_Usuario_UsuarioAndEstadoEvaluacion(String usuario, String estadoEvaluacion);
 }
