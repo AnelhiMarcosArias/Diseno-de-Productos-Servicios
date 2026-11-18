@@ -1,6 +1,6 @@
 # Análisis y servicio experimental de Machine Learning
 
-Este componente se mantiene separado del frontend y de Spring Boot. Su primera etapa audita ENDES 2025 directamente desde los ZIP originales, sin extraerlos ni imprimir identificadores o filas. Las salidas del análisis son agregadas.
+Este componente mantiene por separado dos usos: el experimento retrospectivo ENDES 2025 descrito abajo y un modelo XGBoost sintético para la demostración V1–V12 del producto. El endpoint ENDES no se conecta a los casos. El modelo sintético sí puede ser llamado por Spring, pero no tiene validez clínica ni predictiva sobre personas reales. La auditoría ENDES usa ZIP locales sin imprimir identificadores o filas y sus resultados son agregados.
 
 ## Entorno
 
@@ -19,6 +19,14 @@ python .\scripts\audit_endes.py
 python .\scripts\build_feature_dictionary.py
 python -m pytest
 ```
+
+Entrena el modelo sintético V1–V12 antes de iniciar FastAPI:
+
+```powershell
+python .\scripts\train_synthetic_v1_v12.py
+```
+
+La generación es determinista, usa solo datos generados y deja artefactos locales ignorados por Git. Reglas y alcance: [`docs/synthetic_model.md`](docs/synthetic_model.md).
 
 El script espera los archivos locales en `../Proyecto_Feminicidio_Datos/`. La carpeta `01_Datos_Originales` está excluida de Git; no muevas los ZIP originales a una carpeta versionada ni subas registros.
 
@@ -42,11 +50,12 @@ python -m uvicorn app.main:app --reload
 
 - `GET /health` informa por separado si el proceso está activo y si el artefacto experimental se cargó. Siempre indica `product_prediction_enabled=false`.
 - `POST /experimental/classify-d107` exige los 19 campos del esquema ENDES exacto. Devuelve una clase retrospectiva D107 y, si existe, el score bruto del modelo; el score no es una probabilidad individual calibrada. `D114` puede enviarse como `null` únicamente cuando `D113=0`; el valor faltante no se convierte en “Nunca”.
+- `POST /experimental/simulate-v1-v12` exige las 12 respuestas categóricas `SI`, `NO` o `NO_ESTOY_SEGURA`. Devuelve un índice demostrativo de 0–100 desde XGBoost y mantiene explícito el alcance sintético. Sin ese artefacto, responde `503`; nunca inventa un resultado.
 - Sin artefacto, la ruta responde `503`; no genera resultados ficticios. FastAPI publica OpenAPI en `/docs`.
 
-La ruta es solo experimental. No predice feminicidio ni violencia futura, no tiene correspondencia validada con V1–V12 y no está conectada al frontend, Spring Boot ni PostgreSQL. No la expongas a profesionales ni a Internet.
+La ruta ENDES es solo de investigación. No predice feminicidio ni violencia futura, no tiene correspondencia validada con V1–V12 y no está conectada al flujo de casos. La ruta sintética V1–V12 se integra solo como demostración técnica y guarda su resultado por Spring/PostgreSQL; no se debe exponer como sistema clínico ni usar para decisiones de atención.
 
-**No ejecuta ni publica un predictor de feminicidio futuro.** La interfaz del producto y el modelo experimental no comparten un diccionario de variables validado.
+**No ejecuta ni publica un predictor de feminicidio futuro.** El producto y el experimento ENDES no comparten un diccionario de variables validado; el XGBoost V1–V12 aprende una regla sintética documentada.
 
 ## Informes y alcance metodológico
 
@@ -55,4 +64,4 @@ La ruta es solo experimental. No predice feminicidio ni violencia futura, no tie
 - [`docs/model_results.md`](docs/model_results.md): resultados y métricas del último experimento ejecutado.
 - [`docs/model_comparison.png`](docs/model_comparison.png): curvas ROC, precisión-recall y calibración sin ponderar de la muestra elegible, además del resumen PR-AUC.
 
-La ENDES es transversal. El módulo REC84DV contiene indicadores de violencia reportada y agregados derivados; no contiene un desenlace futuro de feminicidio. El artefacto local conserva solo un pipeline experimental; no es un modelo seleccionado para la aplicación. El servicio no se conecta al cuestionario de 12 preguntas, al frontend, a Spring Boot ni a PostgreSQL.
+La ENDES es transversal. El módulo REC84DV contiene indicadores de violencia reportada y agregados derivados; no contiene un desenlace futuro de feminicidio. El artefacto ENDES local conserva solo un pipeline experimental y no es un modelo seleccionado para la aplicación. La ruta ENDES no se conecta al flujo de casos; la ruta V1–V12 se integra como demostración sintética a través de Spring Boot y PostgreSQL.

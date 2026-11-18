@@ -9,4 +9,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByCorreo(String correo);
     boolean existsByUsuario(String usuario);
     boolean existsByCorreo(String correo);
+    long countByRolAndEstadoTrue(com.utp.sistema_feminicidio.model.RolUsuario rol);
 }

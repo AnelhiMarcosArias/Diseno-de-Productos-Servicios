@@ -19,4 +19,12 @@ public class MlServiceClientConfig {
                 .requestFactory(requestFactory)
                 .build();
     }
+
+    @Bean
+    RestClient mlInferenceRestClient(@Value("${app.ml-service.base-url:http://localhost:8000}") String baseUrl) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(3));
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
+        return RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
+    }
 }

@@ -4,6 +4,7 @@ import com.utp.sistema_feminicidio.dto.CasoRequest;
 import com.utp.sistema_feminicidio.dto.DetalleCasoRequest;
 import com.utp.sistema_feminicidio.dto.RegistroCasoRequest;
 import com.utp.sistema_feminicidio.dto.RegistroCasoResponse;
+import com.utp.sistema_feminicidio.dto.RespuestaExperimental;
 import com.utp.sistema_feminicidio.exception.ConflictoRegistroException;
 import com.utp.sistema_feminicidio.exception.RecursoNoEncontradoException;
 import com.utp.sistema_feminicidio.model.Caso;
@@ -11,16 +12,22 @@ import com.utp.sistema_feminicidio.model.DetalleCaso;
 import com.utp.sistema_feminicidio.model.EstadoCaso;
 import com.utp.sistema_feminicidio.model.Evaluacion;
 import com.utp.sistema_feminicidio.model.Usuario;
+import com.utp.sistema_feminicidio.model.EstadoSimulacion;
+import com.utp.sistema_feminicidio.model.ResultadoSimulacion;
 import com.utp.sistema_feminicidio.repository.CasoRepository;
 import com.utp.sistema_feminicidio.repository.DetalleCasoRepository;
 import com.utp.sistema_feminicidio.repository.EvaluacionRepository;
 import com.utp.sistema_feminicidio.repository.UsuarioRepository;
+import com.utp.sistema_feminicidio.repository.ResultadoSimulacionRepository;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
+import java.util.TreeMap;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class RegistroCasoService {
@@ -31,15 +38,21 @@ public class RegistroCasoService {
     private final DetalleCasoRepository detalleCasoRepository;
     private final EvaluacionRepository evaluacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ResultadoSimulacionRepository simulacionRepository;
+    private final ObjectMapper objectMapper;
 
     public RegistroCasoService(CasoRepository casoRepository,
             DetalleCasoRepository detalleCasoRepository,
             EvaluacionRepository evaluacionRepository,
-            UsuarioRepository usuarioRepository) {
+            UsuarioRepository usuarioRepository,
+            ResultadoSimulacionRepository simulacionRepository,
+            ObjectMapper objectMapper) {
         this.casoRepository = casoRepository;
         this.detalleCasoRepository = detalleCasoRepository;
         this.evaluacionRepository = evaluacionRepository;
         this.usuarioRepository = usuarioRepository;
+        this.simulacionRepository = simulacionRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -69,6 +82,7 @@ public class RegistroCasoService {
 
         Evaluacion evaluacion = crearEvaluacion(caso, usuario, ahora);
         evaluacion = evaluacionRepository.save(evaluacion);
+        guardarRespuestasExperimentales(solicitud, evaluacion);
         return respuesta(caso, evaluacion, false);
     }
 
@@ -91,12 +105,38 @@ public class RegistroCasoService {
                 .findFirstByCaso_IdCasoAndTipoEvaluacionOrderByFechaEvaluacionAsc(
                         caso.getIdCaso(), TIPO_EVALUACION_REGISTRO);
         if (evaluacionExistente.isPresent()) {
+            guardarRespuestasExperimentales(solicitud, evaluacionExistente.get());
             return respuesta(caso, evaluacionExistente.get(), true);
         }
 
         Usuario usuario = caso.getUsuario();
         Evaluacion evaluacion = evaluacionRepository.save(crearEvaluacion(caso, usuario, ahora));
+        guardarRespuestasExperimentales(solicitud, evaluacion);
         return respuesta(caso, evaluacion, true);
+    }
+
+    private void guardarRespuestasExperimentales(RegistroCasoRequest solicitud, Evaluacion evaluacion) {
+        Map<String, RespuestaExperimental> requested = solicitud.respuestasV1V12();
+        if (requested == null) return; // Preserve compatibility with existing API clients.
+        if (requested.size() != 12) throw new IllegalArgumentException("Debes enviar las 12 respuestas experimentales.");
+        Map<String, RespuestaExperimental> ordered = new TreeMap<>();
+        for (int i = 1; i <= 12; i++) {
+            String key = "V" + i;
+            if (requested.get(key) == null) throw new IllegalArgumentException("Las respuestas V1–V12 no pueden quedar vacías.");
+            ordered.put(key, requested.get(key));
+        }
+        if (!requested.keySet().equals(ordered.keySet())) throw new IllegalArgumentException("Solo se aceptan V1–V12.");
+        var json = objectMapper.valueToTree(ordered);
+        ResultadoSimulacion existing = simulacionRepository.findByEvaluacion_IdEvaluacion(evaluacion.getIdEvaluacion()).orElse(null);
+        if (existing != null) {
+            if (!existing.getRespuestas().equals(json)) throw conflictoCodigo();
+            return;
+        }
+        ResultadoSimulacion pending = new ResultadoSimulacion();
+        pending.setEvaluacion(evaluacion);
+        pending.setRespuestas(json);
+        pending.setEstado(EstadoSimulacion.PENDIENTE);
+        simulacionRepository.save(pending);
     }
 
     private Caso crearCaso(CasoRequest datos, Usuario usuario, LocalDateTime ahora) {

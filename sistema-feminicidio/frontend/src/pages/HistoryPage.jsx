@@ -78,7 +78,7 @@ function CaseRows({ item, expanded, onToggle, evaluations, evalLoading, onResult
   const date = item.fechaRegistro ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' }).format(new Date(item.fechaRegistro)) : '—';
   return <>
     <tr><td><b className="case-code">{item.codigoCaso}</b><small className="table-subtext">Caso #{item.idCaso}</small></td><td>{date}</td><td><span className={`status-pill status-pill--${(item.estadoCaso || '').toLowerCase()}`}>{formatStatus(item.estadoCaso)}</span></td><td><span className="muted">Consultar historial</span></td><td><Button variant="ghost" className="table-action" onClick={onToggle}><Eye size={16} /> {expanded ? 'Ocultar' : 'Ver'}</Button></td></tr>
-    {expanded && <tr className="expanded-row"><td colSpan="5">{evalLoading ? <span className="muted">Cargando evaluaciones…</span> : evaluations?.error ? <><Notice tone="error">{evaluations.error}</Notice><Button variant="secondary" onClick={onToggle}>Cerrar y volver a intentar</Button></> : !evaluations?.length ? <span className="muted">Este caso no tiene evaluaciones registradas.</span> : <div className="evaluation-list">{evaluations.map(evaluation => <div className="evaluation-list__item" key={evaluation.idEvaluacion}><div><b>Evaluación #{evaluation.idEvaluacion}</b><small>{formatEvaluationStatus(evaluation.estadoEvaluacion)} · {evaluation.fechaEvaluacion ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' }).format(new Date(evaluation.fechaEvaluacion)) : 'Fecha no informada'}</small></div>{evaluation.tieneResultado && evaluation.estadoEvaluacion !== 'PENDIENTE_ML' ? <Button variant="secondary" onClick={() => onResult(evaluation.idEvaluacion)}>Consultar resultado</Button> : <span className="muted">Aún no hay un resultado disponible.</span>}</div>)}</div>}</td></tr>}
+    {expanded && <tr className="expanded-row"><td colSpan="5">{evalLoading ? <span className="muted">Cargando evaluaciones…</span> : evaluations?.error ? <><Notice tone="error">{evaluations.error}</Notice><Button variant="secondary" onClick={onToggle}>Cerrar y volver a intentar</Button></> : !evaluations?.length ? <span className="muted">Este caso no tiene evaluaciones registradas.</span> : <div className="evaluation-list">{evaluations.map(evaluation => <div className="evaluation-list__item" key={evaluation.idEvaluacion}><div><b>Evaluación #{evaluation.idEvaluacion}</b><small>{formatEvaluationStatus(evaluation.estadoEvaluacion)} · {evaluation.fechaEvaluacion ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium' }).format(new Date(evaluation.fechaEvaluacion)) : 'Fecha no informada'}</small></div>{evaluation.simulacionDisponible || evaluation.tieneResultado ? <Button variant="secondary" onClick={() => onResult(evaluation.idEvaluacion)}>{evaluation.estadoEvaluacion === 'SIMULACION_COMPLETADA' ? 'Consultar simulación' : evaluation.estadoEvaluacion === 'ERROR_TECNICO_ML' ? 'Reintentar evaluación' : evaluation.estadoEvaluacion === 'PENDIENTE_ML' ? 'Abrir evaluación pendiente' : 'Consultar resultado'}</Button> : <span className="muted">Aún no hay un resultado disponible.</span>}</div>)}</div>}</td></tr>}
   </>;
 }
 
@@ -90,6 +90,8 @@ function formatStatus(value = '') { return value.replaceAll('_', ' ').toLowerCas
 
 function formatEvaluationStatus(value = '') {
   if (value === 'PENDIENTE_ML') return 'Pendiente de evaluación con Machine Learning';
+  if (value === 'SIMULACION_COMPLETADA') return 'Simulación académica completada';
+  if (value === 'ERROR_TECNICO_ML') return 'Error técnico; se puede reintentar';
   return formatStatus(value);
 }
 

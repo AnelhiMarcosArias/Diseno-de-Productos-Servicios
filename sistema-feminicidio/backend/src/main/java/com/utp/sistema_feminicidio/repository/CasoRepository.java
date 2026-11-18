@@ -17,4 +17,5 @@ public interface CasoRepository extends JpaRepository<Caso, Long>, JpaSpecificat
     Page<Caso> findByProvinciaIgnoreCase(String provincia, Pageable pageable);
     Page<Caso> findByDistritoIgnoreCase(String distrito, Pageable pageable);
     Page<Caso> findByFechaRegistroBetween(LocalDateTime desde, LocalDateTime hasta, Pageable pageable);
+    long countByUsuario_Usuario(String usuario);
 }
