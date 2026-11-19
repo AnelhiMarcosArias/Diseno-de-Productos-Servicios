@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,9 +25,9 @@ public class ResultadoSimulacion {
     @Column(name = "id_evaluacion", nullable = false)
     private Long evaluacionId;
 
+    @MapsId
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_evaluacion", nullable = false, unique = true,
-            insertable = false, updatable = false,
+    @JoinColumn(name = "id_evaluacion", nullable = false,
             foreignKey = @ForeignKey(name = "fk_simulacion_evaluacion"))
     private Evaluacion evaluacion;
 
@@ -54,7 +55,6 @@ public class ResultadoSimulacion {
     public Evaluacion getEvaluacion() { return evaluacion; }
     public void setEvaluacion(Evaluacion evaluacion) {
         this.evaluacion = evaluacion;
-        this.evaluacionId = evaluacion == null ? null : evaluacion.getIdEvaluacion();
     }
     public JsonNode getRespuestas() { return respuestas; }
     public void setRespuestas(JsonNode respuestas) { this.respuestas = respuestas; }

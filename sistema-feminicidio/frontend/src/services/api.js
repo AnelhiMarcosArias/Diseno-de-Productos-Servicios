@@ -9,7 +9,17 @@ const api = axios.create({
 });
 
 export function getApiError(error) {
-  if (error.response?.data?.mensaje) return error.response.data.mensaje;
+  const responseData = error.response?.data;
+  if (responseData?.mensaje) {
+    const details = responseData.detalles;
+    if (details && typeof details === 'object') {
+      const messages = Object.entries(details)
+        .filter(([, message]) => typeof message === 'string' && message.trim())
+        .map(([field, message]) => `${field}: ${message}`);
+      if (messages.length) return `${responseData.mensaje}: ${messages.join('; ')}`;
+    }
+    return responseData.mensaje;
+  }
   if (error.response?.status === 401) return 'La sesión no está autenticada o expiró. Inicia sesión para continuar.';
   if (error.response?.status === 403) return 'No tienes permiso para realizar esta operación.';
   if (error.response?.status === 404) return 'No se encontró el recurso solicitado.';
